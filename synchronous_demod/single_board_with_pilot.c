@@ -25,8 +25,8 @@
 
 //#define max_clock_count 150000  //max attained
 //#define timer_delay 2			//min attained
-#define max_clock_count 10000
-#define timer_delay 32
+#define max_clock_count 50000
+#define timer_delay 6
 #define buf_size 100
 #define max_pilot_count 40
 #define array_length 50
@@ -34,7 +34,8 @@
 int count=0, mod_counter=0;
 int output;
 int val;
-int array[array_length]={2,1,0,0,1,1,0,2,0,3,2,1,0,3,2,3,2,0,1,1,0,2,1,3,0,0,0,1,1,0,2,2,2,0,3,3,1,1,1,0,0,0,3,3,2,1,0,1,2,1};
+int array[array_length]={0,1,0,0,0,1,1,1,1,0,0,1,0,0,0,1,1,1,1,0,0,1,0,0,0,1,1,1,1,0,0,1,0,0,0,1,1,1,1,0,0,1,0,0,0,1,1,1,1,0};
+//{1,1,1,2,1,1,1,1,1,1};
 int inbit=0;
 
 int time_period;
@@ -108,7 +109,7 @@ void DownISR(void)
 	{
 		//UARTprintf("Started Timer1A\n");
 		TimerDisable(TIMER2_BASE, TIMER_A);
-		SysCtlDelay(7*timer_delay); //The sender sends HHHH....HHHL followed by msg. So skip 3/8th of time_period.
+		SysCtlDelay(1*timer_delay); //The sender sends HHHH....HHHL followed by msg. So skip 3/8th of time_period.
 		TimerEnable(TIMER1_BASE, TIMER_A); // Start Timer 1A
 	}
 	else
@@ -125,7 +126,7 @@ void DownISR(void)
 
 void timer_setup()
 {
-	time_period = SysCtlClockGet()/(4*max_clock_count);
+	time_period = SysCtlClockGet()/(2*max_clock_count);
 
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // Enable Timer 0 Clock
 	TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC); // Configure Timer Operation as Periodic
@@ -166,7 +167,7 @@ void Timer1AHandler()
 		//UARTprintf("                           OUTPUT=%d\n",output);
 	}
 
-	count =(count+1)%4;
+	count =(count+1)%2;
 
 
 	MAP_TimerIntClear(TIMER1_BASE, TIMER_A);
@@ -217,7 +218,7 @@ void Timer0AHandler()
 			{
 				GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_0, 0x00);
 			}
-			if(mod_counter==3)
+			if(mod_counter==1)
 			{	//UARTprintf("Sending %d\n",array[inbit]);
 				mod_counter =0;
 				inbit=(inbit+1);
