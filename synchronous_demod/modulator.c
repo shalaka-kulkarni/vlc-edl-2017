@@ -18,9 +18,9 @@
 
 //#define max_clock_count 150000  //max attained
 //#define timer_delay 2			//min attained
-#define max_clock_count 240000 // output is 101kHz at 240000
+#define max_clock_count 320000 // output is 101kHz at 240000
 #define timer_delay 32
-#define array_length 5
+#define array_length 60
 #define buf_size 100
 
 
@@ -28,15 +28,16 @@ int count=0, mod_counter=0;
 int output;
 int val;
 int inbit=0;
-int array[array_length]={1,1,1,0,0};
-//{0,1,0,0,0,1,1,1,1,0,0,1,0,0,0,1,1,1,1,0,0,1,0,0,0,1,1,1,1,0,0,1,0,0,0,1,1,1,1,0,0,1,0,0,0,1,1,1,1,0};
+int array[array_length]={1,0,1,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,1,0,1,1,0,1,1,1,0,1,1,1,1,0};
+//{1,1,0,1,0,0,0,1,0,1,0,1,1,0,0};
+
 //{1,1,1,2,1,1,1,1,1,1};
 int time_period;
 
 int in_array[buf_size];
 int i = 0;
 
-#define max_pilot_count 100
+#define max_pilot_count 400
 int sending_pilot = 4;
 int pilot_count = 0;
 
@@ -56,18 +57,6 @@ void timer_setup()
 	TimerLoadSet(TIMER0_BASE, TIMER_A, time_period);
 	TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1); // Enable Timer 1 Clock
-		TimerConfigure(TIMER1_BASE, TIMER_CFG_PERIODIC); // Configure Timer Operation as Periodic
-		TimerIntRegister(TIMER1_BASE, TIMER_A, Timer1AHandler);
-
-		TimerLoadSet(TIMER1_BASE, TIMER_A, time_period);
-		//TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
-
-		SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
-		TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
-		TimerIntRegister(TIMER2_BASE, TIMER_A, Timer2AHandler);
-		TimerLoadSet(TIMER2_BASE, TIMER_A, time_period);
-		//TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
 	IntMasterEnable();
 	TimerEnable(TIMER0_BASE, TIMER_A); // Start Timer 0A
@@ -78,13 +67,33 @@ void Timer0AHandler()
 	TimerIntClear(TIMER0_BASE,TIMER_TIMA_TIMEOUT);
 	TimerDisable(TIMER0_BASE,TIMER_A );
 
-	if(sending_pilot != 0)
+	if(sending_pilot == 0)
+	{
+		if(inbit<array_length)
+		{
+			if(array[inbit]==mod_counter)
+			{
+				GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_0, 0x00);
+				in_array[i] = array[inbit]; i=(i+1)%buf_size;
+				inbit=(inbit+ mod_counter)%array_length;
+
+			}
+			else
+			{
+				GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_0, 0x01);
+				inbit=(inbit+ mod_counter)%array_length;
+			}
+			mod_counter =(mod_counter +1)%2;
+		}
+
+	}
+	else
 	{
 		if(pilot_count == max_pilot_count)
 		{
 			sending_pilot--;
 			GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_0, 0x00);
-			//UARTprintf("Finished sending pilot\n");
+
 		}
 		else
 		{
@@ -99,31 +108,9 @@ void Timer0AHandler()
 			pilot_count++;
 
 		}
+
 	}
-	else
-	{	if(inbit<array_length)
-		{
-			if(array[inbit]==mod_counter)
-			{
-				GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_0, 0x00);
-				in_array[i] = array[inbit]; i=(i+1)%buf_size;
-			}
-			else
-			{
-				GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_0, 0x01);
-			}
-			if(mod_counter==1)
-			{	//UARTprintf("Sending %d\n",array[inbit]);
-				mod_counter =0;
-				inbit=(inbit+1)%array_length;
-			}
-			else
-			{
-				mod_counter =(mod_counter +1);
-			}
-		}
-	}
-	MAP_TimerIntClear(TIMER0_BASE, TIMER_A);
+
 
 	TimerLoadSet(TIMER0_BASE, TIMER_A, time_period);
 	TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
