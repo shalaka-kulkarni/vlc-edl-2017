@@ -95,14 +95,7 @@ void Timer0AHandler()
 	else if(sending_pilot==3)
 	{
 
-		if(pilot_count == max_pilot_count)
-		{
-			sending_pilot=2;
-			GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_0, 0x00);
-
-		}
-		else
-		{
+	
 			if(pilot_count%2==1)
 			{
 				GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_0, 0x01);
@@ -114,8 +107,9 @@ void Timer0AHandler()
 			}
 
 			pilot_count=pilot_count+1;
+			sending_pilot=sending_pilot -(pilot_count/max_pilot_count);
 
-		}
+	
 
 	}
 	else if(sending_pilot==2)
