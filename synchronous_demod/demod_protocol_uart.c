@@ -24,8 +24,11 @@
 #include "utils/uartstdio.h"
 
 
-#define buffer_length 96
-uint16_t val;
+//#define buffer_length 8192
+#define buffer_length 512
+
+//Variables of interest for demod
+int val;
 uint16_t received_array[buffer_length];
 int counter=0;
 int mode =0; // mode 0 is searching for start sequence, mode 1 is searching for number of bytes, mode 2 is receiving data
@@ -33,11 +36,15 @@ uint16_t start_seq_rec=0b0000000000000000;
 uint16_t start_seq= 0b0111100001111000;
 uint16_t no_bytes=0;
 int no_bytes_cntr=0;
-int no_bits=0;
+uint16_t no_bits=0;
 int i=0;
+char end_char[1] ={'2'};
+//Variables of interest for UART
+char str[buffer_length];
+int uart_i = 0;
+int tp;
+
 void UpISR(void);
-
-
 void interrupt_setup(void);
 void Timer0AHandler();
 void Timer1AHandler();
@@ -65,7 +72,7 @@ void UpISR()
 	GPIOIntClear(GPIO_PORTE_BASE, GPIO_PIN_1); // clear the interrupt
 
 	GPIOIntClear(GPIO_PORTE_BASE, GPIO_PIN_1); // clear the interrupt
-
+	GPIOIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1); // enable interrupts
 
 	val = GPIOPinRead(GPIO_PORTE_BASE, GPIO_PIN_0);
 
@@ -78,6 +85,13 @@ void UpISR()
 		else
 		{
 			mode=3;
+			GPIOIntDisable(GPIO_PORTE_BASE, GPIO_PIN_1);
+
+			for(tp=0;tp<no_bits;tp++)
+			{
+				str[tp] = (char)(received_array[tp]+48);
+			}
+
 		}
 
 	}
@@ -98,7 +112,6 @@ void UpISR()
 		}
 		i++;
 	}
-	GPIOIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1); // enable interrupts
 }
 
 void GPIO_setup()
@@ -114,13 +127,35 @@ void GPIO_setup()
 
 }
 
+void ConfigureUART(void)
+{
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+	GPIOPinConfigure(GPIO_PA0_U0RX);
+	GPIOPinConfigure(GPIO_PA1_U0TX);
+	GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+	UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
+	UARTStdioConfig(0, 115200, 16000000);
+	//UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet() , 115200, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
+	//IntMasterEnable();
+	//IntEnable(INT_UART0);
+	//UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_TX);
+}
+
+void UARTSend(const uint8_t *pui8Buffer, uint32_t ui32Count)
+{
+	while(ui32Count--)
+		UARTCharPutNonBlocking(UART0_BASE, *pui8Buffer++);
+}
+
 
 void setup(void)
 {
 	SysCtlClockSet(SYSCTL_SYSDIV_2_5| SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_XTAL_16MHZ);
 	GPIO_setup();
-
 	interrupt_setup();
+	ConfigureUART();
+
 }
 
 int main(void)
@@ -129,7 +164,14 @@ int main(void)
 
 	while(1)
 	{
-
+		if(mode==3)
+		{
+			UARTprintf(str);
+			UARTprintf(end_char);
+			mode = 0;
+			GPIOIntClear(GPIO_PORTE_BASE, GPIO_PIN_1); // clear the interrupt
+			GPIOIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1); // enable interrupts
+		}
 	}
 	return 0;
 }

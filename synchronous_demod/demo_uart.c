@@ -24,17 +24,20 @@
 #include "utils/uartstdio.h"
 
 
-#define buffer_length 96
-uint16_t val;
-uint16_t received_array[buffer_length];
+#define buffer_length 120
+
+int val;
+int received_array[buffer_length];
 int counter=0;
-int mode =0; // mode 0 is searching for start sequence, mode 1 is searching for number of bytes, mode 2 is receiving data
-uint16_t start_seq_rec=0b0000000000000000;
-uint16_t start_seq= 0b0111100001111000;
-uint16_t no_bytes=0;
-int no_bytes_cntr=0;
-int no_bits=0;
-int i=0;
+int tot_counter = 0;
+
+char str[buffer_length];
+char end_char[1] = {'2'};
+int uart_i = 0;
+int tp;
+
+int flag = 0;
+
 void UpISR(void);
 
 
@@ -55,6 +58,27 @@ void interrupt_setup()
 	GPIOIntClear(GPIO_PORTE_BASE, GPIO_PIN_1);
 	GPIOIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1);
 }
+void ConfigureUART(void)
+{
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+	GPIOPinConfigure(GPIO_PA0_U0RX);
+	GPIOPinConfigure(GPIO_PA1_U0TX);
+	GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+	UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
+	UARTStdioConfig(0, 115200, 16000000);
+	//UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet() , 115200, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
+	IntMasterEnable();
+	//IntEnable(INT_UART0);
+	//UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_TX);
+}
+
+void UARTSend(const uint8_t *pui8Buffer, uint32_t ui32Count)
+{
+	while(ui32Count--)
+		UARTCharPutNonBlocking(UART0_BASE, *pui8Buffer++);
+}
+
 
 void UpISR()
 {
@@ -65,40 +89,25 @@ void UpISR()
 	GPIOIntClear(GPIO_PORTE_BASE, GPIO_PIN_1); // clear the interrupt
 
 	GPIOIntClear(GPIO_PORTE_BASE, GPIO_PIN_1); // clear the interrupt
-
+	GPIOIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1); // enable interrupts
 
 	val = GPIOPinRead(GPIO_PORTE_BASE, GPIO_PIN_0);
+	received_array[counter]= val;
+	counter= (counter+1)% buffer_length;
 
-	if(mode ==2)
-	{	if(counter< no_bits)
-		{
-			received_array[counter]= val;
-			counter= (counter+1) ;
-		}
-		else
-		{
-			mode=3;
-		}
-
-	}
-	else if(mode==1)
+	//UART
+	tot_counter = (tot_counter+1);
+	if(tot_counter==10*buffer_length)
 	{
-		no_bytes_cntr=no_bytes_cntr+1;
-		no_bytes = (no_bytes<<1) +val;
-		mode= mode+ (int)( no_bytes_cntr/16);
-		no_bits=no_bytes*8;
-
-	}
-	else if(mode==0)
-	{
-		start_seq_rec = (start_seq_rec<<1) +val;
-		if((start_seq_rec ==start_seq))
+		for(tp=0;tp<buffer_length;tp++)
 		{
-			mode=1;
+			str[tp] = (char)(received_array[tp]+48);
 		}
-		i++;
+		tot_counter = 0;
+		flag = 1;
+		//GPIOIntDisable(GPIO_PORTE_BASE, GPIO_PIN_1);
 	}
-	GPIOIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1); // enable interrupts
+
 }
 
 void GPIO_setup()
@@ -109,8 +118,8 @@ void GPIO_setup()
 	GPIOPadConfigSet(GPIO_PORTE_BASE, GPIO_PIN_1,
 			GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);  // Enable weak pullup resistor for PF4
 	GPIOPinTypeGPIOInput(GPIO_PORTE_BASE, GPIO_PIN_0);  // Init PF4 as input
-		GPIOPadConfigSet(GPIO_PORTE_BASE, GPIO_PIN_0,
-				GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);  // Enable weak pullup resistor for PF4
+	GPIOPadConfigSet(GPIO_PORTE_BASE, GPIO_PIN_0,
+			GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);  // Enable weak pullup resistor for PF4
 
 }
 
@@ -121,6 +130,7 @@ void setup(void)
 	GPIO_setup();
 
 	interrupt_setup();
+	ConfigureUART();
 }
 
 int main(void)
@@ -129,9 +139,16 @@ int main(void)
 
 	while(1)
 	{
-
+		if(flag == 1)
+		{
+			flag  =0;
+			//UARTprintf(str);
+			//UARTprintf(end_char);
+			//GPIOIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1);
+		}
 	}
 	return 0;
+
 }
 void SysTickHandler()
 {}
