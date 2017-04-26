@@ -1,8 +1,8 @@
 /*
- * demod.c
+ * Group no.: B02
+ * 
+ * This is the main.c code for the receiver Tiva.
  *
- *  Created on: 07-Mar-2017
- *      Author: eskay
  */
 
 #include <stdint.h>
@@ -63,6 +63,18 @@ void interrupt_setup()
 	GPIOIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1);
 }
 
+/**
+ * GPIO_FALLING_EDGE interrupts are enabled on the pin which receives the recovered clock. At every
+ * falling edge, the signal on the pin which receives demodulated data is sampled. This directly gives
+ * the received bit.
+ * The handler UpISR has a sequence of three modes of operation:
+ * Mode 0: Searching for start sequence. This signifies that mode 1 can be entered.
+ * Mode 1: Receiving and computing number of bytes of data. After 16 bits are received, mode 2 entered.
+ * Mode 2: Receiving data. After no_bits number of bits are received:
+ *         i. Bits are concatenated to form a string
+ *	  ii. GPIO interrupts are disabled on the pin
+ *       iii. Mode is changed to 3
+ */
 void UpISR()
 {
 	//UARTprintf("Entered UpISR\n");
@@ -164,6 +176,11 @@ int main(void)
 
 	while(1)
 	{
+		/**
+		 * Polls for mode=3 at every loop. This signifies that complete data has been received.
+		 * The data is now sent to PC over UART, mode is changed to zero and then GPIO interrupts
+		 * are re-enabled on the pin to ready the Tiva for the next transmission.
+		 */
 		if(mode==3)
 		{
 			UARTprintf(str);
