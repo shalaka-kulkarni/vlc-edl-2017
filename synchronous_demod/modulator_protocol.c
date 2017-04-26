@@ -72,12 +72,23 @@ void timer_setup()
 	//TimerEnable(TIMER0_BASE, TIMER_A); // Start Timer 0A
 }
 
+/**
+ * Every time the timer runs out, Timer0AHandler is entered. Based on the value of a flag sending_pilot,
+ * it executes one of the following actions:
+ * 1. Send synchronization sequence (clock sequence) for a predetermined number of cycles
+ * 2. Send predetermined start sequence to signify beginning of data transmission
+ * 3. Send number of bytes of data being transmitted
+ * 4. Send Manchester-coded data.
+ * The sending_pilot flag is initialised to 3 and counts down to 0, which is data transmission mode.
+ */
 void Timer0AHandler()
 {
 	TimerIntClear(TIMER0_BASE,TIMER_TIMA_TIMEOUT);
 	TimerDisable(TIMER0_BASE,TIMER_A );
 	sending_pilot_change=0;
-	if(sending_pilot == 0)  //Data
+	
+	/* Data transmission mode */
+	if(sending_pilot == 0)  
 	{
 		send_start = 0;
 		if(inbit<bitcount)
@@ -109,7 +120,8 @@ void Timer0AHandler()
 		}
 	}
 
-	if(sending_pilot==2)   //Start byte
+	/* Sending the start sequence */
+	if(sending_pilot==2)   
 	{
 
 		if(start_byte[start_bit]==mod_counter)
@@ -127,7 +139,8 @@ void Timer0AHandler()
 		sending_pilot= sending_pilot -(start_bit/16);
 	}
 
-	else if(sending_pilot==3)    //Pilot
+	/* Sending synchronization sequence */
+	else if(sending_pilot==3)    
 	{
 		if(pilot_count%2==1)
 		{
@@ -144,7 +157,8 @@ void Timer0AHandler()
 
 	}
 
-	else if(sending_pilot==1)  //Number of bytes
+	/* Sending number of bytes */
+	else if(sending_pilot==1)  
 	{
 		if(no_bytes_array[no_bytes_array_cntr]==mod_counter)
 		{
@@ -200,6 +214,13 @@ void setup(void)
 	timer_setup();
 }
 
+/**
+ * The program enters UARTIntHandler whenever the UART interrupt occurs. The PC sends the data bit stream to 
+ * the microcontroller at a baud rate of 115200. The uC receives this and buffers it, to be modulated and sent
+ * during data transmission mode. The uC initially receives the number of bits of data and updates the same in 
+ * memory. It then accepts data for as long as the end-character has not been encountered.
+ * After complete buffering of the data stream, the handler disables its own interrupts and enables Timer0.
+ */
 void UARTIntHandler()
 {
 	while(UARTCharsAvail(UART0_BASE))
