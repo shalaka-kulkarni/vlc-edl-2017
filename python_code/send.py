@@ -2,7 +2,7 @@ import serial
 import sys
 from time import time
 
-
+######Converting text string to bits######
 no_of_bytes = 0
 with open('Text_file.txt') as f:
 	array = []
@@ -24,6 +24,7 @@ with open('Output_bin_file.txt', "w") as output:
 bit_per_sym =1
 no_of_bits = no_of_bytes*8
 
+######Appending number of bits at the start and end-character at the end######
 with open('outfile.txt', "w") as output:
   output.write(str('0'))
   output.write(str(no_of_bits))
@@ -35,7 +36,7 @@ with open('outfile.txt', "w") as output:
   output.write(str('2'))
   output.close()
 
-			
+######Sending the data stream to Tiva over USB######		
 conn = serial.Serial('COM5',115200)
 print("Opened COM port")
 
