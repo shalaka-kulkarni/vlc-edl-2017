@@ -25,7 +25,7 @@
 
 
 //#define buffer_length 8192
-#define buffer_length 512
+#define buffer_length 8192
 
 //Variables of interest for demod
 int val;
@@ -35,10 +35,13 @@ int mode =0; // mode 0 is searching for start sequence, mode 1 is searching for 
 uint16_t start_seq_rec=0b0000000000000000;
 uint16_t start_seq= 0b0111100001111000;
 uint16_t no_bytes=0;
+uint16_t prev_no_bytes=0;
+
 int no_bytes_cntr=0;
 uint16_t no_bits=0;
 int i=0;
 char end_char[1] ={'2'};
+char block_char[1] ={'3'};
 //Variables of interest for UART
 char str[buffer_length];
 int uart_i = 0;
@@ -99,8 +102,24 @@ void UpISR()
 	{
 		no_bytes_cntr=no_bytes_cntr+1;
 		no_bytes = (no_bytes<<1) +val;
-		mode= mode+ (int)( no_bytes_cntr/16);
-		no_bits=no_bytes*8;
+		if(no_bytes_cntr==16)
+		{	if(no_bytes==prev_no_bytes)
+			{
+				mode= mode+ 1;
+				no_bits=no_bytes*8;
+				prev_no_bytes=no_bytes;
+			}
+			else{
+				prev_no_bytes=no_bytes;
+				no_bytes_cntr=0;
+				no_bytes=0;
+				mode=0;
+				start_seq_rec=0;
+				UARTprintf(block_char);
+			}
+
+		}
+
 
 	}
 	else if(mode==0)
@@ -110,7 +129,7 @@ void UpISR()
 		{
 			mode=1;
 		}
-		i++;
+
 	}
 }
 
