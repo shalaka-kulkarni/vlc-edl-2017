@@ -24,9 +24,18 @@ with open('Output_bin_file.txt', "w") as output:
 bit_per_sym =1
 no_of_bits = no_of_bytes*8
 
+max_len = 5
+str_no_of_bytes = str(no_of_bytes)
+length_of_no_of_bytes=len(str_no_of_bytes)
+append_str = ""
+for k in range(max_len - length_of_no_of_bytes):
+        append_str = append_str + "0"
+str_no_of_bytes = append_str + str_no_of_bytes
+
+
 with open('outfile.txt', "w") as output:
   #output.write(str('0'))
-  output.write(str(no_of_bits))
+  output.write(str_no_of_bytes)
   for char in array:
     for i in range(0,int(8/bit_per_sym)):
       substr =char[i*bit_per_sym:(i+1)*bit_per_sym]

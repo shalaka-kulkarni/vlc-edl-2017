@@ -18,7 +18,7 @@
 
 #define max_clock_count 240000 // output is 101kHz at 240000
 #define timer_delay 32
-#define buf_size 1024
+#define buf_size 5000
 #define max_pilot_count 200000
 #define num 16
 
@@ -30,7 +30,7 @@ int output;
 int val;
 int inbit=0;
 int start_bit=0;
-int start_byte[16]={0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0};
+uint16_t start_byte[16]={0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0};
 //int stop_byte[16]={};
 uint16_t no_bytes=0;
 int no_bytes_array[num];
@@ -39,7 +39,7 @@ int no_bytes_const = 0;
 int restart = 0;
 int array_length = 16+num;
 
-int array[buf_size];
+uint16_t array[buf_size];
 int time_period;
 int in_array[buf_size];
 
@@ -47,9 +47,9 @@ int i = 0;
 int index = 0;
 int uart_i=num+16;
 
-int getting_bitcount = 3;
+int getting_bytecount = 5;
 int stopbit = 0;
-int bitcount = 0;
+int bytecount = 0;
 
 int send_start = 0;
 int sending_pilot = 1;
@@ -190,10 +190,10 @@ void UARTIntHandler()
 	{
 		entered = entered+1;
 		int ucData = UARTCharGet(UART0_BASE) - 48;
-		if(getting_bitcount != 0) //init 3
+		if(getting_bytecount != 0) //init 5
 		{
-			bitcount = 10*bitcount + ucData; //init 0
-			getting_bitcount--;
+			bytecount = 10*bytecount + ucData; //init 0
+			getting_bytecount--;
 		}
 		else
 		{
@@ -202,9 +202,9 @@ void UARTIntHandler()
 				stopbit = 1; //init 0
 				UARTDisable(UART0_BASE);
 
-				no_bytes = bitcount/8;
+				no_bytes = bytecount;
 				no_bytes_const = no_bytes;
-				array_length = array_length+bitcount;
+				array_length = array_length + bytecount*8;
 
 				int j=num-1+16;
 				for(j=num-1+16;j>=0+16;--j)
